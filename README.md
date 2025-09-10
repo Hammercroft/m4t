@@ -1,7 +1,7 @@
 # M4T (Messenger for Tinkerers)
 > A silly little pet project made to make use of the interconnectivity of computers in computer labs.
 
-M4T is a lightweight, experimental chat program built on top of **UDP**.  
+M4T is a lightweight, terminal-based, experimental chat program built on top of **UDP**.  
 
 At its core, M4T is a **two-participant peer-to-peer chat application**:  
 - It can send messages to any valid port and address.  
