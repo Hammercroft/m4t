@@ -9,6 +9,8 @@ At its core, M4T is a **two-participant peer-to-peer chat application**:
 
 Because it relies on UDP, **message delivery is not guaranteed** - packets may be dropped, duplicated, or arrive out of order.  
 
+Written on Java 11.
+
 ---
 
 ## Current Limitations
