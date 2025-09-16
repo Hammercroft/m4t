@@ -40,7 +40,7 @@ Written on Java 11.
 ---
 
 ## Contributing
-Contributions are welcome.  
+Contributions are welcome. Please preserve the "godclass" nature of M4TChatProgram and M4TChatHub.
 
 1. Fork the repository.  
 2. Create a feature branch for your changes.  
