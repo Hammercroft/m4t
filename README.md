@@ -31,7 +31,7 @@ Written on Java 11.
 ---
 
 ## Roadmap
-- [ ] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
+- [x] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
 - [ ] Add a contract system providing:  
   - Message acknowledgements  
   - Encryption  
