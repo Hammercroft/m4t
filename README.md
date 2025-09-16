@@ -23,7 +23,8 @@ Written on Java 11.
 ---
 
 ## Message Format
-- All payloads are considered user messages unless reserved.  
+- All payloads are considered user messages unless reserved.
+- All messages to be encoded in UTF-8.
 - Messages beginning with a **dot (`.`)** are reserved for client commands and should not be transmitted. Incoming messages starting with a dot are discarded.  
 - Messages beginning with a **slash (`/`)** may be reserved for command handling by hubs/servers.  
 - Messages beginning with **`|^~`** are treated as internal semaphores. These trigger program behaviour and are not shown in user output.  
