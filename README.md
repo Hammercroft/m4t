@@ -32,7 +32,7 @@ Written on Java 11.
   - Discard after expiry.
 - **Message Content:**  
   - UTF-8 encoded string.  
-  - Zero-length or single-newline messages are **discarded** and must not be processed.  
+  - Zero-length messages are **discarded** and must not be processed.  
   - Entire payload (`ID + content`) must not exceed **800 bytes**, unless peers negotiate another limit.
 ## Reserved Prefixes
 - `"."` → **Client commands**.  
@@ -53,9 +53,9 @@ Written on Java 11.
 # Roadmap
 - [x] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
 - [ ] Add a contract system providing:  
-  - Message acknowledgements  
-  - Encryption  
-  - Message source filtering  
+  - [ ] Message acknowledgements  
+  - [ ] Encryption  
+  - [ ] Message source filtering  
 
 ---
 
