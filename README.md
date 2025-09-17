@@ -23,7 +23,7 @@ Written on Java 11.
 ---
 
 ## Message Format (To be implemented...)
-- All payloads start with a 16-bit message ID, then the message content.
+- All payloads start with a randomly generated 16-bit message ID, then the message content.
 - All payload packets are to be 800 bytes large at most, unless another number is agreed upon.
 - All payloads are considered user messages unless reserved.
 - All message content are encoded in UTF-8.
