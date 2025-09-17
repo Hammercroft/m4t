@@ -22,13 +22,14 @@ Written on Java 11.
 
 ---
 
-## Message Format
+## Message Format (To be implemented...)
+- All payloads start with a 16-bit message ID, then the message content.
+- All payload packets are to be 800 bytes large at most, unless another number is agreed upon.
 - All payloads are considered user messages unless reserved.
-- All messages to be encoded in UTF-8.
+- All message content are encoded in UTF-8.
 - Messages beginning with a **dot (`.`)** are reserved for client commands and should not be transmitted. Incoming messages starting with a dot are discarded.  
 - Messages beginning with a **slash (`/`)** may be reserved for command handling by hubs/servers.  
 - Messages beginning with **`|^~`** are treated as internal semaphores. These trigger program behaviour and are not shown in user output.  
-
 ---
 
 ## Roadmap
