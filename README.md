@@ -32,7 +32,7 @@ Written on Java 11.
   - Discard after expiry.
 - **Message Content:**  
   - UTF-8 encoded string.  
-  - Zero-length messages are **discarded** and must not be processed.  
+  - Zero-length or single-newline messages are **discarded** and must not be processed.  
   - Entire payload (`ID + content`) must not exceed **800 bytes**, unless peers negotiate another limit.
 ## Reserved Prefixes
 - `"."` → **Client commands**.  
