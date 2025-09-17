@@ -22,17 +22,35 @@ Written on Java 11.
 
 ---
 
-## Message Format (To be implemented...)
-- All payloads start with a randomly generated 16-bit message ID, then the message content.
-- All payload packets are to be 800 bytes large at most, unless another number is agreed upon.
-- All payloads are considered user messages unless reserved.
-- All message content are encoded in UTF-8.
-- Messages beginning with a **dot (`.`)** are reserved for client commands and should not be transmitted. Incoming messages starting with a dot are discarded.  
-- Messages beginning with a **slash (`/`)** may be reserved for command handling by hubs/servers.  
-- Messages beginning with **`|^~`** are treated as internal semaphores. These trigger program behaviour and are not shown in user output.  
+# General Payload and Message Format
+## Payload Structure
+- **Message ID:**  
+  - 16-bit signed integer (`short`, Java).  
+  - Encoded in **big-endian (network byte order)**.  
+  - Used to identify retransmissions of the same message.  
+  - Must be retained in memory for up to **30 seconds** or **64 unique IDs**, whichever comes first.  
+  - Discard after expiry.
+- **Message Content:**  
+  - UTF-8 encoded string.  
+  - Zero-length messages are **discarded** and must not be processed.  
+  - Entire payload (`ID + content`) must not exceed **800 bytes**, unless peers negotiate another limit.
+## Reserved Prefixes
+- `"."` → **Client commands**.  
+  - Must not be transmitted.  
+  - If received, discard/ignore.  
+- `"/"` → **Server/hub commands** (optional, reserved for higher-level handling).  
+- `"|^~"` → **Semaphores (internal signals)**.  
+  - Control program behaviour.  
+  - Must never be shown in user output.
+## Acknowledgements
+- **All non-reserved messages** (displayable text) must be acknowledged.  
+- ACK format: `|^~ACK <acknowledgedMsgId> <acknowledgedMsg>`
+- `<acknowledgedMsgId>` → numeric string of the signed short ID.  
+- `<acknowledgedMsg>` → original UTF-8 message content.  
+- ACKs **must never themselves trigger further ACKs**.
 ---
 
-## Roadmap
+# Roadmap
 - [x] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
 - [ ] Add a contract system providing:  
   - Message acknowledgements  
@@ -41,7 +59,7 @@ Written on Java 11.
 
 ---
 
-## Contributing
+# Contributing
 Contributions are welcome. Please preserve the "godclass" nature of M4TChatProgram and M4TChatHub.
 
 1. Fork the repository.  
