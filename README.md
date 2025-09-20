@@ -31,8 +31,7 @@ Written on Java 11.
   - Must be retained in memory for up to **30 seconds** or **64 unique IDs**, whichever comes first.  
   - Discard after expiry.
 - **Message Content:**  
-  - UTF-8 encoded string.  
-  - Zero-length messages are **discarded** and must not be processed.  
+  - UTF-8 encoded string.   
   - Entire payload (`ID + content`) must not exceed **800 bytes**, unless peers negotiate another limit.
 ## Reserved Prefixes
 - `"."` → **Client commands**.  
