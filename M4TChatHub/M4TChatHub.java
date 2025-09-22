@@ -1,21 +1,3 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.Scanner;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Map.Entry;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 /*
 MIT License
 
@@ -39,26 +21,58 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
  */
+
+// Yes. We are using the default package.
+// This is meant to be manually compiled via a JDK's utilities.
+// To create a runnable .jar of this, do the following in your shell:
+// jar cfe ./M4TChatProgram.jar M4TChatProgram ./M4TChatProgram.class
+// java -jar ./M4TChatProgram.jar
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.UnknownHostException;
+import java.net.DatagramSocket;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Enumeration;
+import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- * @author hammercroft
+ * A simple UDP-based, two-participant chat program.
+ *
+ * @author org.nekoweb.hammercroft
  */
-public class M4TChatHub {
+public class M4TChatProgram {
 
-    public static final int BUFFER_SIZE = 800;
+    // CONSTANTS
+    final static int DEFAULT_BUFFER_SIZE = 800; // well within the average MTU of old cellular internet.
+    final static String SEM_ACK = "|^~ACK "; // general ack semaphore
+    final static String SEM_SALVE = "|^~SALVE";
+    final static String SEM_ETTUSALVE = "|^~E2SALVE";
 
-    //  CONFIGURATION
-    static DatagramSocket ourRecievingSocket = null;
-    static DatagramSocket ourSendingSocket = null;
+    // TRANSMISSION CONFIGURATION
+    static DatagramSocket ourSocket = null; // Port of which we receive messages, and of which we use to send messages.
+    static InetAddress theirAddress = null; // Target peer's address.
+    static int theirPort = -1; // Target peer's port. This field needs re-initialization with a valid port number.
 
-    //  PROGRAM FIELDS
+    // PROGRAM FIELDS
     static Scanner scn = new Scanner(System.in);
-    static boolean active = true;
-    static Map<InetAddress, Session> sessions = new HashMap<>();
-    static BlockingQueue<DatagramPacket> backlog = new LinkedBlockingQueue();
+    static int bufferSize = DEFAULT_BUFFER_SIZE;
 
-    public static void resolveConfig() {
-        System.out.println("Please enter your desired receiving port (0-65535):");
-        while (ourRecievingSocket == null) {
+    public static void resolveTransmissionConfig() {
+        // [ Resolve transmission config via user input ]
+        System.out.println("Please enter your desired operating port (0–65535):");
+        while (ourSocket == null) {
             try {
                 int port = Integer.parseInt(scn.nextLine().trim());
                 if (port < 0 || port > 65535) {
@@ -66,9 +80,9 @@ public class M4TChatHub {
                     continue;
                 }
                 // Create the DatagramSocket on the user-specified port
-                ourRecievingSocket = new DatagramSocket(port);
+                ourSocket = new DatagramSocket(port);
                 if (port == 0) { // Port 0 is a request for automatic assignment, so lets print what we actually got.
-                    System.out.println("Using port " + ourRecievingSocket.getLocalPort());
+                    System.out.println("Using port " + ourSocket.getLocalPort());
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a numeric port.");
@@ -76,8 +90,38 @@ public class M4TChatHub {
                 System.out.println("Failed to bind to port. It may be in use or restricted. Please try another port.");
             }
         }
-        
-        ourSendingSocket = ourRecievingSocket; //TODO separate these
+        System.out.println();
+
+        System.out.println("Please enter your target's IP address.");
+        while (theirAddress == null) {
+            try {
+                theirAddress = InetAddress.getByName(scn.nextLine().trim());
+            } catch (UnknownHostException ex) {
+                System.out.println("Unknown host / invalid IP address. Please try another hostname / valid IP address.");
+            }
+        }
+        System.out.println();
+
+        System.out.println("Please enter your target's recieving port (1-65535). Leave empty to reuse your operating port number.");
+        while (theirPort == -1) {
+            String line = scn.nextLine().trim();
+            if (line.isEmpty()) {
+                // Reuse our own receiving port
+                theirPort = ourSocket.getLocalPort();
+                System.out.println("Targeting " + theirPort + "");
+                break;
+            }
+            try {
+                int port = Integer.parseInt(line);
+                if (port < 1 || port > 65535) {
+                    System.out.println("Port must be between 1 and 65535. Please try again.");
+                    continue;
+                }
+                theirPort = port;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a numeric port.");
+            }
+        }
         System.out.println();
     }
 
@@ -122,82 +166,231 @@ public class M4TChatHub {
                 System.out.println(" - Public IPv6: Could not determine (" + e.getMessage() + ")");
             }
         } catch (SocketException e) {
-            e.printStackTrace();
+            System.getLogger("M4TChatProgram").log(System.Logger.Level.ERROR, "Exception during printYourAddress() address checks", e);
         }
     }
-    
-    public static void send(String line, Session session) throws IOException {
-        byte[] data = line.getBytes();
-        DatagramPacket packet = new DatagramPacket(data, data.length, session.ipAddress, session.receivingPort);
-        ourRecievingSocket.send(packet);
+
+    /**
+     * Sends a message as a UDP datagram to the specified target address and
+     * port.
+     * <p>
+     * Each datagram is wrapped in a {@link Payload} object that includes a
+     * randomly generated 16-bit message ID and the UTF-8 encoded message
+     * content. The message ID is returned to the caller so that retransmissions
+     * or acknowledgements can reference the same identifier.
+     *
+     * @param message the message content to send (UTF-8 encoded in payload)
+     * @param targetAddress the destination IP address
+     * @param targetPort the destination port number
+     * @return the randomly generated 16-bit message ID associated with this
+     * payload
+     * @throws IOException if an I/O error occurs while sending the datagram
+     */
+    public static short send(String message, InetAddress targetAddress, int targetPort) throws IOException {
+        short randomId = (short) ThreadLocalRandom.current().nextInt(0, 65536);
+        Payload outgoing = new Payload(randomId, message);
+        byte[] bytes = outgoing.toBytes();
+        DatagramPacket outPacket = new DatagramPacket(bytes, bytes.length, targetAddress, targetPort);
+        ourSocket.send(outPacket);
+        return randomId;
     }
 
-    public static void main(String args[]) {
-        active = true;
+    /**
+     * Sends a general message acknowledgement (ACK) for a received payload.
+     * The acknowledgement format is:
+     * <pre>
+     * |^~ACK &lt;messageId&gt; &lt;message&gt;
+     * </pre> where:
+     * <ul>
+     * <li>{@code messageId} is the numeric string form of the signed short
+     * ID.</li>
+     * <li>{@code message} is the original message content (UTF-8).</li>
+     * </ul>
+     *
+     * @param received the payload that is being acknowledged
+     * @param targetAddress the destination IP address
+     * @param targetPort the destination port number
+     * @throws IOException if an I/O error occurs while sending the ACK datagram
+     */
+    public static void sendAck(Payload received, InetAddress targetAddress, int targetPort) throws IOException {
+        // Build ACK string according to specification
+        String ackMessage = "|^~ACK " + received.messageId + " " + received.content;
+        // Send using the existing send(String, …) method
+        send(ackMessage, targetAddress, targetPort);
+    }
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+        boolean active = true;
         printYourAddresses(); // TODO dont print on headless mode
 
         System.out.println(); // TODO dont print on headless mode
-        resolveConfig();
+        resolveTransmissionConfig();
 
-        System.out.println("Hub is now active");
-        byte[] buffer = new byte[BUFFER_SIZE];
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.println("Starting communication to " + theirAddress + ":" + theirPort);
+        System.out.println("Due to the nature of delivery via UDP, the delivery of messages between you and your peer is not guaranteed.");
+        System.out.println();
+        System.out.println("RECEIVED MESSAGES ARE NOT GUARANTEED TO ORIGINATE FROM YOUR INTENDED COMMUNICATION TARGET.");
+        System.out.println("YOUR MESSAGES ARE NOT ENCRYPTED.");
+        System.out.println();
+        System.out.println("To stop communication, do enter .exit");
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.println("(Communication start.)");
+        
+        // Separate thread for recieving messages.
+        new Thread(() -> {
+            while (true) {
+                byte[] buffer = new byte[bufferSize];
+                try {
+                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+                    // This call blocks until a packet is received
+                    ourSocket.receive(packet);
+
+                    // Extract data
+                    Payload received = Payload.fromBytes(buffer, bufferSize);
+
+                    // Semaphore-handling conditions
+                    if (received.content.startsWith(SEM_ACK)) {
+                        // Strip off the prefix (everything after "|^~ACK ")
+                        String ackData = received.content.substring(SEM_ACK.length());
+
+                        // Split into two parts: messageId and acknowledged message
+                        int firstSpace = ackData.indexOf(' ');
+                        if (firstSpace == -1) {
+                            System.err.println("Malformed ACK: missing space separator");
+                            continue;
+                        }
+
+                        String idPart = ackData.substring(0, firstSpace);
+                        String ackMessage = ackData.substring(firstSpace + 1);
+
+                        try {
+                            short ackMsgId = Short.parseShort(idPart);
+                            // TODO: handle ACK logic (mark message as delivered, etc.)
+                        } catch (NumberFormatException e) {
+                            System.err.println("Malformed ACK: invalid message ID \"" + idPart + "\"");
+                        }
+
+                        continue; // do not display ACKs as normal messages
+                    } else if (received.content.startsWith(SEM_SALVE)){
+                        System.out.println("(Target peer is online.)");
+                        send(SEM_ETTUSALVE, theirAddress, theirPort);
+                        continue;
+                    } else if (received.content.startsWith(SEM_ETTUSALVE)){
+                        System.out.println("(Target peer is online.)");
+                        continue;
+                    }
+
+                    // Display received message
+                    System.out.print(" (+) ");
+                    System.out.print(received.content);
+                    if (!received.content.isEmpty() && received.content.charAt(received.content.length() - 1) == '\n') {
+                        // if message ended with a newline, do nothing.
+                    } else {
+                        // if message did not end with a newline, print a newline.
+                        System.out.print('\n');
+                    }
+
+                    // Transmit general acknowledgement for received message
+                    sendAck(received, theirAddress, theirPort);
+                } catch (IOException ex) {
+                    // Crash this thread silently. Quick and dirty way to end this thread after closing ourSocket in the main thread.
+                }
+            }
+        }).start();
+        
+        // Greeting semaphore
+        try {
+            send("|^~SALVE", theirAddress, theirPort);
+        } catch (IOException ex) {
+            Logger.getLogger(M4TChatProgram.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        // Transmission of messages to target
         while (true) {
+            String message = scn.nextLine();
+
+            // Client command switch
+            if (message.equalsIgnoreCase(".exit")) {
+                active = false;
+                break;
+            }
+            else if (message.equalsIgnoreCase(".salve")||message.equalsIgnoreCase(".poke")) {
+                try {
+                    send(SEM_SALVE, theirAddress, theirPort);
+                } catch (IOException ex) {
+                    Logger.getLogger(M4TChatProgram.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                continue;
+            }
+
+            // Send message
             try {
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-
-                // This call blocks until a packet is received
-                ourRecievingSocket.receive(packet);
-
-                // Extract data
-                String received = new String(packet.getData(), 0, packet.getLength());
-                InetAddress senderAddress = packet.getAddress();
-                
-                // Check if IP matches a known session
-                Session session = sessions.get(senderAddress);
-                if (session == null) { // If not known, create a new session
-                    session = new Session(
-                            senderAddress.getHostAddress(),
-                            senderAddress,
-                            packet.getPort() // for now, assume that their recieving port is the port they used to send this packet
-                    );
-                    sessions.put(senderAddress, session);
-                }
-                
-                session.lastTransmissionTime = System.currentTimeMillis();
-                
-                // TODO command and semaphore handling
-                // Rebroadcast msg to all sessions except this session
-                for (Entry<InetAddress,Session> entry : sessions.entrySet()){
-                    if (entry.getKey().equals(senderAddress)) continue; // do not send to sender
-                    send("["+senderAddress.getHostAddress()+"]:"+received,entry.getValue());
-                }
-                
-                //int senderPort = packet.getPort();
-                //System.out.print(" (+) ");
-                //System.out.print(received);
-                //if (!received.isEmpty() && received.charAt(received.length() - 1) == '\n') {
-                //    // if message ended with a newline, do nothing.
-                //} else {
-                //    // if message did not end with a newline, print a newline.
-                //    System.out.print('\n');
-                //}
+                send(message, theirAddress, theirPort);
             } catch (IOException ex) {
-                ex.printStackTrace();
+                
             }
         }
+        ourSocket.close();
+        System.out.println("(Communication end).");
     }
 
-    public static class Session {
-        public String username;
-        public InetAddress ipAddress;
-        public int receivingPort;
-        public long lastTransmissionTime; // Unix clock time in millis
+    // UTILITY CLASSES
+    public static class Payload {
 
-        public Session(String their_uname, InetAddress their_addr, int their_port) {
-            username = their_uname;
-            ipAddress = their_addr;
-            receivingPort = their_port;
-            lastTransmissionTime = System.currentTimeMillis(); // TODO use this to automatically throw away sessions after AFK'ing for a long time
+        private final short messageId;
+        private final String content;
+
+        public Payload(short messageId, String content) {
+            this.messageId = messageId;
+            this.content = content;
+        }
+
+        public short getMessageId() {
+            return messageId;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        /**
+         * Parse raw bytes (from a DatagramPacket) into a Payload.
+         * @param data the raw data of this payload
+         * @param length the known byte length of this payload
+         * @return The resulting Payload instance
+         */
+        public static Payload fromBytes(byte[] data, int length) {
+            ByteBuffer buffer = ByteBuffer.wrap(data, 0, length);
+
+            // First 2 bytes = message ID
+            short messageId = buffer.getShort();
+
+            // Remaining bytes = UTF-8 content
+            byte[] contentBytes = new byte[length - 2];
+            buffer.get(contentBytes);
+
+            String content = new String(contentBytes, StandardCharsets.UTF_8);
+
+            return new Payload(messageId, content);
+        }
+
+        /**
+         * Convert a Payload back into a byte array (for sending).
+         * @return the raw bytes of this Payload
+         */
+        public byte[] toBytes() {
+            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+            ByteBuffer buffer = ByteBuffer.allocate(2 + contentBytes.length);
+
+            buffer.putShort(messageId);
+            buffer.put(contentBytes);
+
+            return buffer.array();
         }
     }
 }
