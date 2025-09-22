@@ -45,21 +45,21 @@ Written on Java 11.
 - **All non-reserved messages** (displayable text) must be acknowledged.  
 - ACK format: `|^~ACK <acknowledgedMsgId> <acknowledgedMsg>`
 - `<acknowledgedMsgId>` → numeric string of the signed short ID.  
-- `<acknowledgedMsg>` → original UTF-8 message content.  
+- `<acknowledgedMsg>` → acknowledged UTF-8 message content. (Might be modified or filtered for display purposes)
 - ACKs **must never themselves trigger further ACKs**.
 ---
 
 # Roadmap
 - [x] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
 - [ ] Add a contract system providing:  
-  - [ ] Message acknowledgements  
+  - [x] Message acknowledgements  
   - [ ] Encryption  
   - [ ] Message source filtering  
 
 ---
 
 # Contributing
-Contributions are welcome. Please preserve the "godclass" nature of M4TChatProgram and M4TChatHub.
+Contributions are welcome.
 
 1. Fork the repository.  
 2. Create a feature branch for your changes.  
