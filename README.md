@@ -47,14 +47,6 @@ Written on Java 11.
 - `<acknowledgedMsgId>` → numeric string of the signed short ID.  
 - `<acknowledgedMsg>` → acknowledged UTF-8 message content. (Might be modified or filtered for display purposes)
 - ACKs **must never themselves trigger further ACKs**.
----
-
-# Roadmap
-- [x] Implement a hub/relay program to support multiple clients in a server-mediated chat.  
-- [ ] Add a contract system providing:  
-  - [x] Message acknowledgements  
-  - [ ] Encryption  
-  - [ ] Message source filtering  
 
 ---
 
