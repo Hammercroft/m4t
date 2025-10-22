@@ -59,8 +59,8 @@ Written on Java 11.
 ---
 
 # Contributing
-~~Contributions are welcome.~~ There will be a restructuring of code, and do not contribute until then.
+Contributions are welcome.
 
-~~1. Fork the repository.~~
-~~2. Create a feature branch for your changes.~~  
-~~3. Open a pull request against `main`, ideally with a clear and focused commit history.~~
+1. Fork the repository.
+2. Create a feature branch for your changes.
+3. Open a pull request against `main`, ideally with a clear and focused commit history.
