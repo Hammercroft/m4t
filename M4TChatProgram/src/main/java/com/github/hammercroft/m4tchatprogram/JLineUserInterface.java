@@ -29,7 +29,8 @@ public class JLineUserInterface implements UserInterface {
     /**
      * Creates and starts a new instance of this user interface.
      *
-     * @param chatProgram
+     * @param chatProgram an instance of the M4TChatProgram that this user
+     * interface will work with
      */
     public JLineUserInterface(M4TChatProgram chatProgram) {
         this.chatProgram = chatProgram;
@@ -64,7 +65,7 @@ public class JLineUserInterface implements UserInterface {
         }
         if (terminal == null || "dumb".equalsIgnoreCase(terminal.getType())) {
             System.out.println("WARNING: Using a dumb terminal.\nOutput may be broken, some features may not work, or this program may not work at all..\n"
-                    + "For full functionality, run this program in a standard terminal\n(e.g., xterm, GNOME Terminal, PowerShell, Windows Terminal).");
+                    + "For full functionality, run this program in a standard terminal\n(e.g., xterm, GNOME Terminal, PowerShell, Windows Terminal).\n");
         }
         this.scanner = null;
         this.reader = LineReaderBuilder.builder().terminal(this.terminal).build();
@@ -75,7 +76,11 @@ public class JLineUserInterface implements UserInterface {
                 while (chatProgram.running == true) {
                     String line = reader.readLine();
 
-                    this.sendInputtedMessage(line);
+                    if (line.startsWith(".")) {
+                        this.handleInputtedLocalCommand(line);
+                    } else {
+                        this.sendInputtedMessage(line);
+                    }
                 }
             } catch (EndOfFileException | UserInterruptException e) {
                 // We encountered CTRL+C (interruption) or CTRL+D/EOL (end of input)
@@ -161,6 +166,12 @@ public class JLineUserInterface implements UserInterface {
         if (topicObj != null && topicObj instanceof String) {
             String topic = (String) topicObj;
             switch (topic) {
+                case "PUSH_TEXT":
+                    displayNotification((String) notificationData.get("Text"));
+                    break;
+                case "UNKNOWN_LOCAL_COMMAND":
+                    displayNotification("Unknown local command.");
+                    break;
                 case "AUTOMATIC_PORT_ASSIGNMENT":
                     displayNotification("Automatic port assigned: " + notificationData.get("Port"));
                     break;
@@ -177,7 +188,6 @@ public class JLineUserInterface implements UserInterface {
                     sb.append("--------------------------------------------------------------------------------\n");
                     displayNotification(sb.toString());
                     break;
-
                 case "MALFORMED_ACK_MISSING_SPACE_SEPARATOR":
                     displayNotification("Received malformed ACK: missing space separator.");
                     break;

@@ -10,7 +10,7 @@ import picocli.CommandLine.Command;
  * A terminal-based peer-to-peer messaging program over UDP.
  * @author hammercroft
  */
-@Command(name = "M4TChatProgram", mixinStandardHelpOptions = true, version = "M4TChatProgram 1.1.0",
+@Command(name = "M4TChatProgram", mixinStandardHelpOptions = true, version = "M4TChatProgram 1.1.1",
          description = "A terminal-based peer-to-peer messaging program over UDP.")
 public class M4TChatProgramMain implements Callable<Integer>{
 
