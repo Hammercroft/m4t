@@ -9,7 +9,7 @@ At its core, M4T is a **two-participant peer-to-peer chat application**:
 
 Because it relies on UDP, **message delivery is not guaranteed** - packets may be dropped, duplicated, or arrive out of order.  
 
-Written on Java 11.
+M4TChatProgram requires Java 11.
 
 ---
 
@@ -19,34 +19,6 @@ Written on Java 11.
 - Carrier-grade NAT may block peer-to-peer communication unless IPv6 is used.  
 - No encryption - all communication is plaintext.  
 - No message authentication - any packet sent to the target port will be displayed.  
-
----
-
-# General Payload and Message Format
-## Payload Structure
-- **Message ID:**  
-  - 16-bit signed integer (`short`, Java).  
-  - Encoded in **big-endian (network byte order)**.  
-  - Used to identify retransmissions of the same message.  
-  - Must be retained in memory for up to **30 seconds** or **64 unique IDs**, whichever comes first.  
-  - Discard after expiry.
-- **Message Content:**  
-  - UTF-8 encoded string.   
-  - Entire payload (`ID + content`) must not exceed **800 bytes**, unless peers negotiate another limit.
-## Reserved Prefixes
-- `"."` → **Client commands**.  
-  - Must not be transmitted.  
-  - If received, discard/ignore.  
-- `"/"` → **Server/hub commands** (optional, reserved for higher-level handling).  
-- `"|^~"` → **Semaphores (internal signals)**.  
-  - Control program behaviour.  
-  - Must never be shown in user output.
-## Acknowledgements
-- **All non-reserved messages** (displayable text) must be acknowledged.  
-- ACK format: `|^~ACK <acknowledgedMsgId> <acknowledgedMsg>`
-- `<acknowledgedMsgId>` → numeric string of the signed short ID.  
-- `<acknowledgedMsg>` → acknowledged UTF-8 message content. (Might be modified or filtered for display purposes)
-- ACKs **must never themselves trigger further ACKs**.
 
 ---
 
