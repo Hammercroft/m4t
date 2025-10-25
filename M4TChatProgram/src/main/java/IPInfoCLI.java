@@ -7,6 +7,12 @@ import java.net.*;
 import java.util.Enumeration;
 import java.util.concurrent.Callable;
 
+/**
+ * A simple command-line utility that prints the local and public IP addresses
+ * of the machine it runs on.
+ *
+ * <p>Note: This class is intended to be compiled and jarred manually.
+ */
 @Command(
         name = "ipinfo",
         mixinStandardHelpOptions = true,
@@ -57,6 +63,10 @@ public class IPInfoCLI implements Callable<Integer> {
         }
     }
 
+    /**
+    * Program entry point.
+    * @param args command-line arguments passed to the program
+    */
     public static void main(String... args) {
         int exitCode = new CommandLine(new IPInfoCLI()).execute(args);
         System.exit(exitCode);

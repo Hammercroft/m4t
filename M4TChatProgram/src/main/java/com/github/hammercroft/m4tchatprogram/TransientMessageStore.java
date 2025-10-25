@@ -19,10 +19,16 @@ package com.github.hammercroft.m4tchatprogram;
  * buffer.</li>
  * </ul>
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "rawtypes" }) //emitted by TransientMessageStore.buffer declaration
 public class TransientMessageStore {
-
-    private final Pair<Long, Short>[] buffer = new Pair[256]; // fixed capacity
+    /*
+     * This array is used in a performance-critical section and must remain a
+     * plain array for predictable memory layout and low allocation overhead.
+     * 
+     * Do NOT “fix” this by replacing it with a List or similar container.
+     * Type safety is maintained by strict control of what is stored in 'buffer'.
+     */
+    private final Pair<Long, Short>[] buffer = new Pair[256]; // IGNORE UNCHECKED & RAWTYPES WARNING
     private int head = 0;  // oldest element
     private int tail = 0;  // next free slot
     private int size = 0;
